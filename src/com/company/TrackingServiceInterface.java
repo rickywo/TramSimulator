@@ -12,6 +12,10 @@ public interface TrackingServiceInterface extends Remote {
 
     int retrieveNextStop(int route_id,int current_stop_number,int previous_stop_number) throws RemoteException;
 
+    Message getRequest(Message message) throws RemoteException;
+
     int connect(int route_id) throws RemoteException;
+
+    int connect(int route_id, int tram_id) throws RemoteException;
 
 }

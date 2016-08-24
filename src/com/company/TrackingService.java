@@ -3,7 +3,6 @@ package com.company;
 
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
-import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 
 import java.util.*;
@@ -13,6 +12,7 @@ import java.util.*;
  */
 public class TrackingService implements TrackingServiceInterface {
 
+    private static TrackingService instance = null;
     private static final long serialVersionUID = -464196277362659008L;
     private static final int RANGE_TRAM_ID = 999;
     private static final int NOT_FOUND = 0;
@@ -22,7 +22,14 @@ public class TrackingService implements TrackingServiceInterface {
     boolean done = false;
     Random rand = new Random();
 
-    TrackingService() {
+    public static TrackingService getInstance() {
+        if(instance == null) {
+            instance = new TrackingService();
+        }
+        return instance;
+    }
+
+    private TrackingService() {
         // initialize routes
         initRoutes();
     }
@@ -38,6 +45,46 @@ public class TrackingService implements TrackingServiceInterface {
         return r.getNextStop(current_stop_number, previous_stop_number);
     }
 
+    @Override
+    public Message getRequest(Message message) {
+
+        Message reply_msg = new Message();
+        RPCMessage rpc_message = message.unMarshal();
+        List<String> para = Arrays.asList(rpc_message.getCsv_data().split("\\s*,\\s*"));
+        int route_id = Integer.valueOf(para.get(0));
+        RPCMessage rpc_rply = new RPCMessage();
+        rpc_rply.setMessageType(RPCMessage.MessageType.REPLY);
+        rpc_rply.setTransactionId(rpc_message.getTransactionId());
+        rpc_rply.setRPCId(rpc_message.getRPCId());
+        rpc_rply.setRequestId(rpc_message.getRequestId());
+        rpc_rply.setStatus(RPCMessage.SUCCESS);
+        switch (rpc_message.getProcedureId()) {
+            case RPCMessage.REQUEST_NEXT_STOP:
+                int current_stop_number = Integer.valueOf(para.get(1));
+                int previous_stop_number = Integer.valueOf(para.get(2));
+                int next_stop_number = retrieveNextStop(route_id, current_stop_number, previous_stop_number);
+                // Encapsulate RPC
+                rpc_rply.setProcedureId(RPCMessage.REPLY_NEXT_STOP);
+                rpc_rply.setCsv_data(String.valueOf(next_stop_number));
+                rpc_rply.setStatus(RPCMessage.SUCCESS);
+                reply_msg.marshal(rpc_rply);
+                return reply_msg;
+            case RPCMessage.REQUEST_CURRENT_LOC:
+                int tram_id = Integer.valueOf(para.get(1));
+                int stop_number = Integer.valueOf(para.get(2));
+                updateTramLocation(tram_id, route_id, stop_number);
+                // Encapsulate RPC
+                rpc_rply.setProcedureId(RPCMessage.REPLY_CURRENT_LOC);
+                rpc_rply.setCsv_data("");
+                reply_msg.marshal(rpc_rply);
+                return reply_msg;
+            default:
+                break;
+
+        }
+        return reply_msg;
+    }
+
     public int connect(int route_id) {
         // get a unique id for a new tram
         boolean found = true;
@@ -45,6 +92,31 @@ public class TrackingService implements TrackingServiceInterface {
         while(found) {
             id = rand.nextInt(RANGE_TRAM_ID) + 1; // Tram id range is from 1-999
             found = trams.containsKey(id);
+        }
+
+        // if can't find this route
+        Route r = routes.get(route_id);
+        if(r == null) {
+            return NOT_FOUND;
+        }
+
+        // if route is full
+        if(!r.addTram()) {
+            return  NOT_FOUND;
+        }
+
+        trams.put(id, id);
+        return id;
+    }
+
+    public int connect(int route_id, int tram_id) {
+        // get a unique id for a new tram
+        boolean found = true;
+        int id = tram_id;
+
+        // If this tram id is taken
+        if(trams.containsKey(id)) {
+            return NOT_FOUND;
         }
 
         // if can't find this route
@@ -105,5 +177,6 @@ public class TrackingService implements TrackingServiceInterface {
             e.printStackTrace();
         }
     }
+
 }
 

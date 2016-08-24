@@ -4,10 +4,11 @@ package com.company;
  * Created by blahblah Team on 2016/8/9.
  */
 public class Route {
-    static final int MAX_TRAM_CAPACITY = 2;
-    static final int NOT_FOUND = 0;
+    static final int MAX_TRAM_CAPACITY = 5;
+    static final int NOT_FOUND = -1;
     static final int NO_PREVIOUS_STOP = 0;
     static final int NO_CURRENT_STOP = 0;
+    static final int MAX_CAPACITY_EXCEEDED = 0;
     int vacant;
     int id;
     int route_length;
